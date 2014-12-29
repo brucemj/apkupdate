@@ -1,5 +1,12 @@
 package com.konka.appupdate;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.http.NameValuePair;
+import org.apache.http.message.BasicNameValuePair;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.StringReader;
 import java.net.URLEncoder;
@@ -11,15 +18,20 @@ import org.xml.sax.InputSource;
 import org.xml.sax.XMLReader;
 
 import android.app.Activity;
+import android.app.AlertDialog.Builder;
+import android.app.Dialog;
 import android.app.ProgressDialog;
 
+import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
@@ -37,13 +49,22 @@ public class AppUpdateDemoActivity extends Activity  implements OnClickListener
 	private TextView appVersionTv;
 	private TextView appVersionInfoTv;
 	private TextView downloadUrlTv;
-	private String packageName;
+	private String apk_name;
+	private String apk_version;
 	
 	private ProgressDialog progressDialog = null;   
 	
 	private HttpClientUtil httpClientUtil;
 	
+	JSONParser jsonParser = new JSONParser();
+	
 	public static final String SERVER_URL = "http://unionupdate.kkpush.net/UnionUpdateService";//测试统一升级服务地址
+	private static String url_create_product = "http://dxkk.kkapks.com/apk";
+	
+	// JSON Node names
+	private static final String TAG_SUCCESS = "success";
+	private ProgressDialog pDialog;
+		
     @Override
     public void onCreate(Bundle savedInstanceState) 
     {
@@ -62,12 +83,19 @@ public class AppUpdateDemoActivity extends Activity  implements OnClickListener
     	appVersionTv = (TextView) findViewById(R.id.appVersionTv);
     	appVersionInfoTv = (TextView) findViewById(R.id.appVersionInfoTv);
     	downloadUrlTv = (TextView) findViewById(R.id.downloadUrlTv);
-    	getCurretnVersionBtn.setOnClickListener(this);
     	
-    	packageName = this.getPackageName();
-    	String nowVersion = getVersionName();
-    	appVersionTv.setText("版本号：" + nowVersion);
-    	appVersionInfoTv.setText("版本信息：" + packageName);
+    	
+    	apk_name = this.getPackageName();
+    	apk_version = getVersionName();
+    	appVersionTv.setText("版本号：" + apk_version);
+    	appVersionInfoTv.setText("版本信息：" + apk_name);
+    	
+    	getCurretnVersionBtn.setOnClickListener(new View.OnClickListener() {
+    		public void onClick(View view) {
+    			// creating new product in background thread
+    			new CreateNewProduct().execute();
+    		}
+    	});
     	
     }
     
@@ -100,125 +128,74 @@ public class AppUpdateDemoActivity extends Activity  implements OnClickListener
 		if(view.getId() == getCurretnVersionBtn.getId())
 		{
 			progressDialog = ProgressDialog.show(this,"请等待...", "正在获取版本 ...", true);  
-			new Thread(new GetAppCurrentVersionThread()).start();
+			//new Thread(new GetAppCurrentVersionThread()).start();
 		}
 	}
 	
-	
-	private Handler handler = new Handler() 
-	{
-		@Override
-		public void handleMessage(Message msg) 
-		{
-			progressDialog.dismiss();
-			//获取版本成功
-			if (msg.what == 1) 
-			{
-				Bundle b = msg.getData();
-        		String AppVersion = b.getString("AppVersion");
-        		String AppVersionInfo = b.getString("AppVersionInfo");
-        		String DownloadUrl = b.getString("DownloadUrl");
-        		appVersionTv.setText("版本号：" + AppVersion);
-        		appVersionInfoTv.setText("版本信息：" + AppVersionInfo);
-        		downloadUrlTv.setText("版本下载地址：" + DownloadUrl);
-			}
-			else if (msg.what == 2)// 发生错误,提示用户
-			{
-				Toast.makeText(AppUpdateDemoActivity.this, "获取版本失败", Toast.LENGTH_LONG).show();
-			}
-		}
-	};
-	/**
-	 * 通知成功
-	 * @param appResult  应用结果
-	 */
-	private void sendSuccess(AppResult appResult)
-	{
-		Message msg = new Message();
-		msg.what = 1;
-        Bundle b = new Bundle();
-        b.putString("AppVersion",appResult.getAppVersion());
-        b.putString("AppVersionInfo",appResult.getAppVersionInfo());
-        b.putString("DownloadUrl",appResult.getDownloadUrl());
-        msg.setData(b);
-        handler.sendMessage(msg);
-	}
-	/**
-	 * 通知失败
-	 */
-	private void sendError()
-	{
-		Message message = Message.obtain();
-		message.what = 2;
-		handler.sendMessage(message);
-	}
-	/**
-	 * 获取版本线程
-	 * @author jan
-	 *
-	 */
-	class GetAppCurrentVersionThread implements Runnable 
-	{
-		@Override
-		public void run() 
-		{
-			String xmlResult = "";
-			try
-			{
-				
-				HashMap<String, String> params = new HashMap<String, String>();
-				String param = "";//服务需要传递的参数
-				param = AppUpdateServiceRequestTemplate.getAppCurrentVersionParams("","","","","");//获取xml参数
-				param = URLEncoder.encode(param, "utf-8"); //参数编码
-				params.put("param", param);
-				xmlResult = httpClientUtil.getPostRequestResult(params);//得到xml返回值
+	class CreateNewProduct extends AsyncTask<String, String, String> {
 
-			}
-			catch(Exception e)
-			{
-				sendError();
-				return;
-			}
-			if (xmlResult == null || "".equals(xmlResult))
-            {
-				sendError();
-				return;
-			}
-			StringReader read = new StringReader(xmlResult);
-			InputSource source = new InputSource(read);
-			ResponseParams responseParams = new ResponseParams();
-			SAXParserFactory factory = SAXParserFactory.newInstance();
-			
-			try
-			{
-				// 解析版本信息xml
-				XMLReader reader = factory.newSAXParser().getXMLReader();
-				reader.setContentHandler(new AppUpdateServiceHandler(responseParams));
-				reader.parse(source);
-				// 解析得到不正常的都取消
-				if (responseParams == null) 
-				{
-					sendError();
-					return;
-				}
-				//获取到正确的结果
-				if("0000".equals(responseParams.getResponseCode()))
-				{
-					AppResult appResult = responseParams.getResponseResult().getAppResult();
-					sendSuccess(appResult);
-				}
-				else
-				{
-					sendError();
-				}
-				
-			}
-			catch(Exception e)
-			{
-				sendError();;
-				return;
-			}
-			
+		/**
+		 * Before starting background thread Show Progress Dialog
+		 * */
+		@Override
+		protected void onPreExecute() {
+			super.onPreExecute();
+			pDialog = new ProgressDialog(AppUpdateDemoActivity.this);
+			pDialog.setMessage("Creating Product..");
+			pDialog.setIndeterminate(false);
+			pDialog.setCancelable(true);
+			pDialog.show();
 		}
+
+		/**
+		 * Creating product
+		 * */
+		protected String doInBackground(String... args) {
+			
+
+			// Building Parameters
+			List<NameValuePair> params = new ArrayList<NameValuePair>();
+			params.add(new BasicNameValuePair("apk_name", apk_name + ""));
+			params.add(new BasicNameValuePair("apk_version", apk_version + ""));
+			
+
+			// getting JSON Object
+			// Note that create product url accepts POST method
+			JSONObject json = jsonParser.makeHttpRequest(url_create_product,
+					"GET", params);
+
+			// check log cat fro response
+			Log.d("Create Response", json.toString());
+
+			// check for success tag
+			try {
+				int success = json.getInt(TAG_SUCCESS);
+
+				if (success == 1) {
+					// successfully created product
+					//Intent i = new Intent(getApplicationContext(),
+					//		AllProductsActivity.class);
+					//startActivity(i);
+					Log.d("Create Response2", "success2");
+					// closing this screen
+					finish();
+				} else {
+					// failed to create product
+				}
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+
+			return null;
+		}
+
+		/**
+		 * After completing background task Dismiss the progress dialog
+		 * **/
+		protected void onPostExecute(String file_url) {
+			// dismiss the dialog once done
+			pDialog.dismiss();
+		}
+
 	}
 }
