@@ -27,6 +27,7 @@ import org.xml.sax.InputSource;
 import org.xml.sax.XMLReader;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.AlertDialog.Builder;
 import android.app.Dialog;
 import android.app.ProgressDialog;
@@ -49,7 +50,7 @@ import android.widget.Toast;
 
 /**
  * 应用获取最新版本实例
- * @author jan
+ * @author mj
  *
  */
 public class AppUpdateDemoActivity extends Activity  implements OnClickListener
@@ -65,20 +66,14 @@ public class AppUpdateDemoActivity extends Activity  implements OnClickListener
 	
 	private HttpClientUtil httpClientUtil;
 	
-	public static final String SERVER_URL = "http://unionupdate.kkpush.net/UnionUpdateService";//测试统一升级服务地址
-	private static String url_create_product = "http://dxkk.kkapks.com/apk/index.php";
+	public static final String SERVER_URL = "http://dxkk.kkapks.com/apk/index.php";//测试统一升级服务地址
 	
-	// JSON Node names
-	private static final String TAG_SUCCESS = "success";
-	private ProgressDialog pDialog;
-		
     @Override
     public void onCreate(Bundle savedInstanceState) 
     {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
         initView();
-        initUtil();
     }
 
     /**
@@ -94,16 +89,16 @@ public class AppUpdateDemoActivity extends Activity  implements OnClickListener
     	
     	apk_name = this.getPackageName();
     	apk_version = getVersionName();
-    	appVersionTv.setText("版本号：" + apk_version);
-    	appVersionInfoTv.setText("版本信息：" + apk_name);
+
+    	appVersionTv.setText("当前应用名：" + apk_version);
+    	appVersionInfoTv.setText("当前版本号：" + apk_name);
     	
     	getCurretnVersionBtn.setOnClickListener(new View.OnClickListener() {
     		public void onClick(View view) {
     			// creating new product in background thread
-    			new CreateNewProduct().execute();
+    			new AccessUpdateServer().execute();
     		}
-    	});
-    	
+    	});    	
     }
     
     private String getVersionName(){  
@@ -122,45 +117,32 @@ public class AppUpdateDemoActivity extends Activity  implements OnClickListener
         return packInfo.versionName;
     }
     
-    /**
-     * 初始化工具
-     */
-    private void initUtil()
-    {
-    	httpClientUtil = new HttpClientUtil(SERVER_URL);
-    }
+
 	@Override
 	public void onClick(View view)
 	{
-		if(view.getId() == getCurretnVersionBtn.getId())
-		{
-			progressDialog = ProgressDialog.show(this,"请等待...", "正在获取版本 ...", true);  
-			//new Thread(new GetAppCurrentVersionThread()).start();
-		}
+
 	}
 	
-	class CreateNewProduct extends AsyncTask<String, String, String> {
+	class AccessUpdateServer extends AsyncTask<String, String, String> {
+		
+		private String apk_name_new ;
+		private String apk_version_new ;
+		private String apk_url_new ;
 
+		private HttpPost request = new HttpPost(SERVER_URL);
 		/**
-		 * Before starting background thread Show Progress Dialog
+		 * Before starting background thread
 		 * */
 		@Override
 		protected void onPreExecute() {
 			super.onPreExecute();
-			//pDialog = new ProgressDialog(AppUpdateDemoActivity.this);
-			//pDialog.setMessage("Creating Product..");
-			//pDialog.setIndeterminate(false);
-			//pDialog.setCancelable(true);
-			//pDialog.show();
 		}
 
 		/**
 		 * get server info using json
 		 * */
-		protected String doInBackground(String... args) {
-
-			HttpPost request = new HttpPost(url_create_product);  
-			
+		protected String doInBackground(String... args) {			
 			try {
 				// 先封装一个 JSON 对象  
 				List<NameValuePair> params = new ArrayList<NameValuePair>();
@@ -178,17 +160,19 @@ public class AppUpdateDemoActivity extends Activity  implements OnClickListener
 				// 生成 JSON 对象  
 				JSONObject result = new JSONObject( retSrc);  
 			
-				String apk_name = result.getString("apk_name");
-				String apk_version = result.getString("apk_version");
-				String apk_url = result.getString("apk_url");
+				apk_name_new = result.getString("apk_name");
+				apk_version_new = result.getString("apk_version");
+				apk_url_new = result.getString("apk_url");
 				String success =  result.getString("success");
 				String update =  result.getString("update");
 				
-				Log.d("Create end", apk_name);
-				Log.d("Create end", apk_version);
-				Log.d("Create end", apk_url);
+				Log.d("Create end", apk_name_new);
+				Log.d("Create end", apk_version_new);
+				Log.d("Create end", apk_url_new);
 				Log.d("Create end", success);
 				Log.d("Create end", update);
+				
+				
 			} catch (JSONException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -202,35 +186,6 @@ public class AppUpdateDemoActivity extends Activity  implements OnClickListener
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}  
-			 		
-			
-			  
-			// getting JSON Object
-			// Note that create product url accepts POST method
-			//JSONObject json = jsonParser.makeHttpRequest(url_create_product,
-			//		"GET", params);
-
-			// check log cat fro response
-			//Log.d("Create Response", json.toString());
-
-			// check for success tag
-//			try {
-//				int success = json.getInt(TAG_SUCCESS);
-//
-//				if (success == 1) {
-//					// successfully created product
-//					//Intent i = new Intent(getApplicationContext(),
-//					//		AllProductsActivity.class);
-//					//startActivity(i);
-//					Log.d("Create Response2", "success2");
-//					// closing this screen
-//					finish();
-//				} else {
-//					// failed to create product
-//				}
-//			} catch (JSONException e) {
-//				e.printStackTrace();
-//			}
 
 			return null;
 		}
@@ -239,8 +194,11 @@ public class AppUpdateDemoActivity extends Activity  implements OnClickListener
 		 * After completing background task Dismiss the progress dialog
 		 * **/
 		protected void onPostExecute(String file_url) {
-			// dismiss the dialog once done
-			//pDialog.dismiss();
+			new AlertDialog.Builder(AppUpdateDemoActivity.this)  
+			.setTitle("服务器返回信息")  
+			.setItems(new String[] {"apk_name_new: "+apk_name_new,"apk_version_new: "+apk_version_new,"apk_url_new: "+apk_url_new,}, null)  
+			.setNegativeButton("确定", null)  
+			.show();
 		}
 
 	}
