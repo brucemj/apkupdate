@@ -3,12 +3,21 @@ package com.konka.appupdate;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.util.EntityUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.io.StringReader;
+import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.HashMap;
 
@@ -59,7 +68,7 @@ public class AppUpdateDemoActivity extends Activity  implements OnClickListener
 	JSONParser jsonParser = new JSONParser();
 	
 	public static final String SERVER_URL = "http://unionupdate.kkpush.net/UnionUpdateService";//测试统一升级服务地址
-	private static String url_create_product = "http://dxkk.kkapks.com/apk";
+	private static String url_create_product = "http://dxkk.kkapks.com/apk/index.php";
 	
 	// JSON Node names
 	private static final String TAG_SUCCESS = "success";
@@ -140,11 +149,11 @@ public class AppUpdateDemoActivity extends Activity  implements OnClickListener
 		@Override
 		protected void onPreExecute() {
 			super.onPreExecute();
-			pDialog = new ProgressDialog(AppUpdateDemoActivity.this);
-			pDialog.setMessage("Creating Product..");
-			pDialog.setIndeterminate(false);
-			pDialog.setCancelable(true);
-			pDialog.show();
+			//pDialog = new ProgressDialog(AppUpdateDemoActivity.this);
+			//pDialog.setMessage("Creating Product..");
+			//pDialog.setIndeterminate(false);
+			//pDialog.setCancelable(true);
+			//pDialog.show();
 		}
 
 		/**
@@ -154,37 +163,80 @@ public class AppUpdateDemoActivity extends Activity  implements OnClickListener
 			
 
 			// Building Parameters
-			List<NameValuePair> params = new ArrayList<NameValuePair>();
-			params.add(new BasicNameValuePair("apk_name", apk_name + ""));
-			params.add(new BasicNameValuePair("apk_version", apk_version + ""));
+			//List<NameValuePair> params = new ArrayList<NameValuePair>();
+			//params.add(new BasicNameValuePair("apk_name", apk_name + ""));
+			//params.add(new BasicNameValuePair("apk_version", apk_version + ""));
+			HttpPost request = new HttpPost(url_create_product);  
+			Log.d("Create Response", "starting");
+			try {
+				// 先封装一个 JSON 对象  
+				List<NameValuePair> params = new ArrayList<NameValuePair>();
+				JSONObject param = new JSONObject();
+				params.add(new BasicNameValuePair("apk_name", apk_name + ""));
+				params.add(new BasicNameValuePair("apk_version", apk_version + ""));
+				param.put("apk_name", apk_name);
+				param.put("apk_version", apk_version); 
+				
+				// 绑定到请求 Entry  
+				//StringEntity se = new StringEntity(param.toString());   
+				//request.setEntity(se);  
+				
+				request.setEntity(new UrlEncodedFormEntity(params));
+				
+				Log.d("url", request.getRequestLine().toString());
+				// 发送请求  
+				HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+				
+				// 得到应答的字符串，这也是一个 JSON 格式保存的数据  
+				String retSrc = EntityUtils.toString(httpResponse.getEntity());
+				Log.d("Create 2", retSrc);
+				// 生成 JSON 对象  
+				//JSONObject result = new JSONObject( retSrc);  
+				//String token = (String) result.get("token"); 
+				
+				Log.d("Create end", "token");
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (UnsupportedEncodingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (ClientProtocolException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}  
+			 		
 			
-
+			  
 			// getting JSON Object
 			// Note that create product url accepts POST method
-			JSONObject json = jsonParser.makeHttpRequest(url_create_product,
-					"GET", params);
+			//JSONObject json = jsonParser.makeHttpRequest(url_create_product,
+			//		"GET", params);
 
 			// check log cat fro response
-			Log.d("Create Response", json.toString());
+			//Log.d("Create Response", json.toString());
 
 			// check for success tag
-			try {
-				int success = json.getInt(TAG_SUCCESS);
-
-				if (success == 1) {
-					// successfully created product
-					//Intent i = new Intent(getApplicationContext(),
-					//		AllProductsActivity.class);
-					//startActivity(i);
-					Log.d("Create Response2", "success2");
-					// closing this screen
-					finish();
-				} else {
-					// failed to create product
-				}
-			} catch (JSONException e) {
-				e.printStackTrace();
-			}
+//			try {
+//				int success = json.getInt(TAG_SUCCESS);
+//
+//				if (success == 1) {
+//					// successfully created product
+//					//Intent i = new Intent(getApplicationContext(),
+//					//		AllProductsActivity.class);
+//					//startActivity(i);
+//					Log.d("Create Response2", "success2");
+//					// closing this screen
+//					finish();
+//				} else {
+//					// failed to create product
+//				}
+//			} catch (JSONException e) {
+//				e.printStackTrace();
+//			}
 
 			return null;
 		}
@@ -194,7 +246,7 @@ public class AppUpdateDemoActivity extends Activity  implements OnClickListener
 		 * **/
 		protected void onPostExecute(String file_url) {
 			// dismiss the dialog once done
-			pDialog.dismiss();
+			//pDialog.dismiss();
 		}
 
 	}
