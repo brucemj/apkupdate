@@ -1,5 +1,7 @@
 package com.konka.appupdate;
 
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -8,45 +10,24 @@ import org.apache.http.NameValuePair;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.IOException;
-import java.io.StringReader;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
-import java.util.HashMap;
-
-import javax.xml.parsers.SAXParserFactory;
-
-import org.xml.sax.InputSource;
-import org.xml.sax.XMLReader;
-
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.AlertDialog.Builder;
-import android.app.Dialog;
-import android.app.ProgressDialog;
-
-import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
-
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Message;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.TextView;
-import android.widget.Toast;
 
 /**
  * 应用获取最新版本实例
@@ -61,10 +42,6 @@ public class AppUpdateDemoActivity extends Activity  implements OnClickListener
 	private TextView downloadUrlTv;
 	private String apk_name;
 	private String apk_version;
-	
-	private ProgressDialog progressDialog = null;   
-	
-	private HttpClientUtil httpClientUtil;
 	
 	public static final String SERVER_URL = "http://dxkk.kkapks.com/apk/index.php";//测试统一升级服务地址
 	
@@ -87,7 +64,9 @@ public class AppUpdateDemoActivity extends Activity  implements OnClickListener
     	downloadUrlTv = (TextView) findViewById(R.id.downloadUrlTv);
     	
     	
-    	apk_name = this.getPackageName();
+    	apk_name=(String) this.getResources().getString(R.string.app_name);
+    	//apk_name = this.getPackageName();
+    	
     	apk_version = getVersionName();
 
     	appVersionTv.setText("当前应用名：" + apk_version);
@@ -196,7 +175,7 @@ public class AppUpdateDemoActivity extends Activity  implements OnClickListener
 		protected void onPostExecute(String file_url) {
 			new AlertDialog.Builder(AppUpdateDemoActivity.this)  
 			.setTitle("服务器返回信息")  
-			.setItems(new String[] {"apk_name_new: "+apk_name_new,"apk_version_new: "+apk_version_new,"apk_url_new: "+apk_url_new,}, null)  
+			.setItems(new String[] {"应用程序名: "+apk_name_new,"新版本号: "+apk_version_new,"下载链接: "+apk_url_new,}, null)  
 			.setNegativeButton("确定", null)  
 			.show();
 		}
