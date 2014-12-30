@@ -65,8 +65,6 @@ public class AppUpdateDemoActivity extends Activity  implements OnClickListener
 	
 	private HttpClientUtil httpClientUtil;
 	
-	JSONParser jsonParser = new JSONParser();
-	
 	public static final String SERVER_URL = "http://unionupdate.kkpush.net/UnionUpdateService";//测试统一升级服务地址
 	private static String url_create_product = "http://dxkk.kkapks.com/apk/index.php";
 	
@@ -157,32 +155,19 @@ public class AppUpdateDemoActivity extends Activity  implements OnClickListener
 		}
 
 		/**
-		 * Creating product
+		 * get server info using json
 		 * */
 		protected String doInBackground(String... args) {
-			
 
-			// Building Parameters
-			//List<NameValuePair> params = new ArrayList<NameValuePair>();
-			//params.add(new BasicNameValuePair("apk_name", apk_name + ""));
-			//params.add(new BasicNameValuePair("apk_version", apk_version + ""));
 			HttpPost request = new HttpPost(url_create_product);  
-			Log.d("Create Response", "starting");
+			
 			try {
 				// 先封装一个 JSON 对象  
 				List<NameValuePair> params = new ArrayList<NameValuePair>();
-				JSONObject param = new JSONObject();
 				params.add(new BasicNameValuePair("apk_name", apk_name + ""));
 				params.add(new BasicNameValuePair("apk_version", apk_version + ""));
-				param.put("apk_name", apk_name);
-				param.put("apk_version", apk_version); 
-				
-				// 绑定到请求 Entry  
-				//StringEntity se = new StringEntity(param.toString());   
-				//request.setEntity(se);  
 				
 				request.setEntity(new UrlEncodedFormEntity(params));
-				
 				Log.d("url", request.getRequestLine().toString());
 				// 发送请求  
 				HttpResponse httpResponse = new DefaultHttpClient().execute(request);
@@ -191,10 +176,19 @@ public class AppUpdateDemoActivity extends Activity  implements OnClickListener
 				String retSrc = EntityUtils.toString(httpResponse.getEntity());
 				Log.d("Create 2", retSrc);
 				// 生成 JSON 对象  
-				//JSONObject result = new JSONObject( retSrc);  
-				//String token = (String) result.get("token"); 
+				JSONObject result = new JSONObject( retSrc);  
+			
+				String apk_name = result.getString("apk_name");
+				String apk_version = result.getString("apk_version");
+				String apk_url = result.getString("apk_url");
+				String success =  result.getString("success");
+				String update =  result.getString("update");
 				
-				Log.d("Create end", "token");
+				Log.d("Create end", apk_name);
+				Log.d("Create end", apk_version);
+				Log.d("Create end", apk_url);
+				Log.d("Create end", success);
+				Log.d("Create end", update);
 			} catch (JSONException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
